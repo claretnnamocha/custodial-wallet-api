@@ -1,0 +1,8 @@
+securityDefinitions:
+  Bearer:
+    type: apiKey
+    in: header
+    name: Authorization
+
+security:
+  - Bearer: []

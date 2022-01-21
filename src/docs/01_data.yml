@@ -1,0 +1,14 @@
+paths:
+  dataset:
+    get:
+      summary: Example datasets
+      description: "
+
+        **User**
+
+        username: alpha
+
+        password: Alpha123
+        "
+      tags:
+        - Data

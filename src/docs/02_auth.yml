@@ -1,0 +1,161 @@
+paths:
+  /auth/sign-in:
+    post:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/signIn"
+      responses:
+        200:
+          description: Status and message and data
+
+  /auth/sign-up:
+    post:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/signUp"
+      responses:
+        200:
+          description: Status and message and data
+
+  /auth/verify:
+    get:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: token
+          type: string
+          required: true
+      responses:
+        200:
+          description: Status and message and data
+
+  /auth/resend-verification:
+    get:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: email
+          type: string
+          required: true
+      responses:
+        200:
+          description: Status and message and data
+
+  /auth/initiate-reset:
+    post:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/initiateReset"
+      responses:
+        200:
+          description: Status and message and data
+
+  /auth/verify-reset:
+    get:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: query
+          name: token
+          reqired: true
+          type: string
+      responses:
+        200:
+          description: Status and message and data
+
+  /auth/reset-password:
+    put:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/resetPassword"
+      responses:
+        200:
+          description: Status and message and data
+
+definitions:
+  signIn:
+    type: object
+    properties:
+      user:
+        type: string
+        required: true
+      password:
+        type: string
+        required: true
+  signUp:
+    type: object
+    properties:
+      firstname:
+        type: string
+        required: true
+      lastname:
+        type: string
+        required: true
+      username:
+        type: string
+        required: true
+      email:
+        type: string
+        required: true
+      role:
+        type: string
+        required: true
+      country:
+        type: string
+        required: true
+      preferredLanguage:
+        type: string
+        required: true
+      password:
+        type: string
+        required: true
+  initiateReset:
+    type: object
+    properties:
+      email:
+        type: string
+        required: true
+  resetPassword:
+    type: object
+    properties:
+      token:
+        type: string
+        required: true
+      password:
+        type: string

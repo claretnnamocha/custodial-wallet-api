@@ -1,0 +1,75 @@
+paths:
+  /user:
+    get:
+      tags:
+        - User
+      produces:
+        - application/json
+      security:
+        - Bearer: []
+      responses:
+        200:
+          description: Status and message and data
+
+  /user/change-password:
+    put:
+      tags:
+        - User
+      produces:
+        - application/json
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/changePassword"
+      responses:
+        200:
+          description: Status and message and data
+
+  /user/edit-profile:
+    put:
+      tags:
+        - User
+      produces:
+        - application/json
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/editProfile"
+      responses:
+        200:
+          description: Status and message and data
+
+definitions:
+  changePassword:
+    type: object
+    properties:
+      password:
+        type: string
+        required: true
+      oldPassword:
+        type: string
+        required: true
+  editProfile:
+    properties:
+      firstname:
+        type: string
+      lastname:
+        type: string
+      username:
+        type: string
+      dob:
+        type: string
+      country:
+        type: string
+      preferredLanguage:
+        type: string
+      currency:
+        type: string
