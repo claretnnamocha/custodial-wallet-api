@@ -1,7 +1,6 @@
-# api-template-2
+# custodial-wallet-api
 
-Express API template built with typescript
+Sample custodial crypto wallet api written with [Nodejs](https://nodejs.org), [Typescript](https://typescriptlang.org) and [Express](https://expressjs.com)
 
-Extended from [template](https://github.com/claretnnamocha/template) to handle modules by separating into independent folders 
 
 Built with ❤️ by [@claretnnamocha](https://github.com/claretnnamocha)
