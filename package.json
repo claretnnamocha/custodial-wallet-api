@@ -1,8 +1,8 @@
 {
-  "name": "backend",
+  "name": "my-custodial-wallet",
   "version": "1.0.0",
-  "description": "Backend Template",
-  "displayName": "Backend Template",
+  "description": "Sample custodial crypto wallet api written with Nodejs, Typescript and Express",
+  "displayName": "My Custodial Wallet",
   "main": "src/index.ts",
   "scripts": {
     "start": "ts-node src/index.ts",

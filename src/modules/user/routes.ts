@@ -1,23 +1,26 @@
 import { Router } from "express";
-import { authenticate, controller, validate } from "../../middlewares";
-import * as user from "./controller";
+import { controller, validate } from "../../middlewares";
+import * as user from "./controllers";
 import * as validator from "./validators";
 
 const routes = Router();
-routes.use(authenticate);
 
-routes.get("", controller(user.getProfile));
+routes.get("/", controller(user.getProfile));
 
 routes.put(
-  "/change-password",
-  validate(validator.changePassword),
-  controller(user.changePassword)
+  "/update-password",
+  validate(validator.updatePassword),
+  controller(user.updatePassword)
 );
 
 routes.put(
-  "/edit-profile",
-  validate(validator.editProfile),
-  controller(user.editProfile)
+  "/update-profile",
+  validate(validator.updateProfile),
+  controller(user.updateProfile)
 );
+
+routes.post("/log-other-devices-out", controller(user.logOtherDevicesOut));
+
+routes.post("/sign-out", controller(user.signOut));
 
 export default routes;

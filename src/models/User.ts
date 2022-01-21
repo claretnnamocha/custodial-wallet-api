@@ -1,30 +1,30 @@
 import bcrypt from "bcryptjs";
-import { DataTypes, Sequelize } from "sequelize";
+import { DataTypes } from "sequelize";
 import { db } from "../configs/db";
 
 const User = db.define(
   "User",
   {
     id: { type: DataTypes.UUID, primaryKey: true },
-    address: {
-      type: DataTypes.JSONB,
-      allowNull: false,
-      defaultValue: {},
-    },
+    username: { type: DataTypes.STRING, allowNull: false, unique: true },
+    email: { type: DataTypes.STRING, allowNull: false, unique: true },
     firstname: { type: DataTypes.STRING },
     lastname: { type: DataTypes.STRING },
     othernames: { type: DataTypes.STRING },
-    username: { type: DataTypes.STRING, allowNull: false, unique: true },
-    email: { type: DataTypes.STRING, allowNull: false },
-    country: { type: DataTypes.STRING },
-    phone: { type: DataTypes.STRING },
-    dob: { type: DataTypes.DATE },
     avatar: { type: DataTypes.STRING },
     role: {
       type: DataTypes.STRING,
+      allowNull: false,
       defaultValue: "user",
       values: ["user", "admin"],
     },
+    permissions: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      defaultValue: [],
+      allowNull: false,
+    },
+    phone: { type: DataTypes.STRING },
+    location: { type: DataTypes.STRING },
     password: {
       type: DataTypes.STRING,
       set(value: string) {
@@ -33,6 +33,12 @@ const User = db.define(
       },
     },
     gender: { type: DataTypes.STRING },
+    dob: { type: DataTypes.DATE },
+    isDeleted: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
     verifiedemail: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
@@ -48,20 +54,32 @@ const User = db.define(
       defaultValue: true,
       allowNull: false,
     },
-    isDeleted: {
-      type: DataTypes.BOOLEAN,
-      defaultValue: false,
+    loginValidFrom: {
+      type: DataTypes.STRING,
+      defaultValue: Date.now(),
       allowNull: false,
     },
   },
   { timestamps: true, tableName: "user" }
 );
 
-User.prototype.transform = function () {
-  let data = this.dataValues;
+User.prototype.toJSON = function (admin = false) {
+  const data = this.dataValues;
 
   delete data.password;
+
+  if (!admin) {
+    delete data.isDeleted;
+    delete data.active;
+    delete data.role;
+    delete data.permissions;
+  }
+
   return data;
+};
+
+User.prototype.validatePassword = function (val: string) {
+  return bcrypt.compareSync(val, this.getDataValue("password"));
 };
 
 export { User };

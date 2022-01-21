@@ -1,20 +1,4 @@
 paths:
-  /auth/sign-in:
-    post:
-      tags:
-        - Authentication
-      produces:
-        - application/json
-      parameters:
-        - in: body
-          name: request
-          required: true
-          schema:
-            $ref: "#/definitions/signIn"
-      responses:
-        200:
-          description: Status and message and data
-
   /auth/sign-up:
     post:
       tags:
@@ -29,7 +13,31 @@ paths:
             $ref: "#/definitions/signUp"
       responses:
         200:
-          description: Status and message and data
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
+
+  /auth/sign-in:
+    post:
+      tags:
+        - Authentication
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/signIn"
+      responses:
+        200:
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
 
   /auth/verify:
     get:
@@ -39,27 +47,18 @@ paths:
         - application/json
       parameters:
         - in: query
-          name: token
-          type: string
-          required: true
-      responses:
-        200:
-          description: Status and message and data
-
-  /auth/resend-verification:
-    get:
-      tags:
-        - Authentication
-      produces:
-        - application/json
-      parameters:
-        - in: query
           name: email
           type: string
-          required: true
+        - in: query
+          name: token
+          type: string
       responses:
         200:
-          description: Status and message and data
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
 
   /auth/initiate-reset:
     post:
@@ -75,7 +74,11 @@ paths:
             $ref: "#/definitions/initiateReset"
       responses:
         200:
-          description: Status and message and data
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
 
   /auth/verify-reset:
     get:
@@ -86,11 +89,15 @@ paths:
       parameters:
         - in: query
           name: token
-          reqired: true
+          required: true
           type: string
       responses:
         200:
-          description: Status and message and data
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
 
   /auth/reset-password:
     put:
@@ -106,7 +113,11 @@ paths:
             $ref: "#/definitions/resetPassword"
       responses:
         200:
-          description: Status and message and data
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
 
 definitions:
   signIn:
@@ -123,23 +134,15 @@ definitions:
     properties:
       firstname:
         type: string
-        required: true
       lastname:
         type: string
-        required: true
       username:
         type: string
         required: true
       email:
         type: string
         required: true
-      role:
-        type: string
-        required: true
-      country:
-        type: string
-        required: true
-      preferredLanguage:
+      phone:
         type: string
         required: true
       password:
@@ -159,3 +162,6 @@ definitions:
         required: true
       password:
         type: string
+      logOtherDevicesOut:
+        type: boolean
+        default: false

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { controller, validate } from "../../middlewares";
-import * as auth from "./controller";
+import * as auth from "./controllers";
 import * as validator from "./validators";
 
 const routes = Router();
@@ -13,12 +13,6 @@ routes.get(
   "/verify",
   validate(validator.verify),
   controller(auth.verifyAccount)
-);
-
-routes.get(
-  "/resend-verification",
-  validate(validator.resendVerification),
-  controller(auth.resendVerificationAccount)
 );
 
 routes.post(

@@ -7,13 +7,16 @@ export interface UserInterface {
   phone?: string;
   password?: string;
   gender?: string;
-  dob?: string;
+  role?: string;
+  location?: string;
+  dob?: Date;
   deleted?: boolean;
   verifiedemail?: boolean;
   verifiedphone?: boolean;
-  role?: string;
   active?: boolean;
   createdAt?: Date;
+  loginValidFrom?: string;
   transform?: Function;
+  validatePassword?: Function;
   updatedAt?: Date;
 }

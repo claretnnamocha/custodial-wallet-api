@@ -2,9 +2,6 @@ import swaggerJsDoc, { Options } from "swagger-jsdoc";
 import { description, version, displayName } from "../../package.json";
 import { env, port } from "./env";
 
-let apis = ["./src/docs/*.yml"];
-if (env === "development") apis.push("./src/docs/*.yaml");
-
 const swagger: Options = {
   swaggerDefinition: {
     info: {
@@ -15,7 +12,7 @@ const swagger: Options = {
       servers: [{ url: `http://localhost:${port}` }],
     },
   },
-  apis,
+  apis: ["./src/docs/*.yml"],
 };
 
 const config = swaggerJsDoc(swagger);

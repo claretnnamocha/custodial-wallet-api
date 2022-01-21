@@ -5,6 +5,7 @@ import swaggerUi from "swagger-ui-express";
 import { bullBoard, db, env, security, swagger } from "./configs";
 import { response } from "./helpers";
 import routes from "./routes";
+import { displayName } from "../package.json";
 
 const app = express();
 const port: number = env.port;
@@ -32,7 +33,9 @@ app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
 
 if (require.main) {
   app.listen(port, () => {
-    console.log(`Backend is running on http://localhost:${port} (${env.env})`);
+    console.log(
+      `${displayName} is running on http://localhost:${port} (${env.env})`
+    );
   });
 }
 

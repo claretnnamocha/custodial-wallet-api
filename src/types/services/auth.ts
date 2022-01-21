@@ -1,5 +1,7 @@
 export interface SignUpRequest {
+  username: string;
   email: string;
+  phone: string;
   firstname: string;
   lastname: string;
   othernames: string;
@@ -7,7 +9,7 @@ export interface SignUpRequest {
   country: string;
   preferredLanguage: string;
   role: string;
-  addresses: Object;
+  addresses: Array<Object>;
   avatar: string;
 }
 
@@ -18,10 +20,8 @@ export interface SignInRequest {
 
 export interface VerifyRequest {
   token: string;
-}
-
-export interface ResendVerifyRequest {
-  email: string;
+  userId?: string;
+  email?: string;
 }
 
 export interface InitiateResetRequest {
@@ -31,4 +31,5 @@ export interface InitiateResetRequest {
 export interface ResetPasswordRequest {
   token: string;
   password: string;
+  logOtherDevicesOut: boolean;
 }

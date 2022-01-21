@@ -4,7 +4,9 @@ import { dbURL, dialect } from "./env";
 
 export const db = new Sequelize(dbURL, {
   dialect,
-  dialectOptions: { ssl: { require: true, rejectUnauthorized: false } },
+  dialectOptions: dbURL.includes("localhost")
+    ? {}
+    : { ssl: { require: true, rejectUnauthorized: false } },
   logging: false,
 });
 

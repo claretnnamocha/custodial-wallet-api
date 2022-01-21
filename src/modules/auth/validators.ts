@@ -1,5 +1,6 @@
 import Joi from "joi";
 import passwordComplexity from "joi-password-complexity";
+
 const JoiPhone = Joi.extend(require("joi-phone-number"));
 
 export const signIn = {
@@ -8,21 +9,24 @@ export const signIn = {
 };
 
 export const signUp = {
-  role: Joi.string().required().valid("user"),
   email: Joi.string().email().required(),
-  firstname: Joi.string().required(),
-  lastname: Joi.string().required(),
-  phone: JoiPhone.string().phoneNumber({ format: "e164" }).required(),
-  othernames: Joi.string(),
+  phone: JoiPhone.string()
+    .phoneNumber({
+      defaultCountry: "NG",
+      format: "e164",
+    })
+    .required(),
+  firstname: Joi.string(),
+  lastname: Joi.string(),
   password: passwordComplexity(),
 };
 
 export const verify = {
-  token: Joi.string(),
-};
-
-export const resendVerification = {
-  email: Joi.string().email().required(),
+  token: Joi.string().default(null),
+  email: Joi.string()
+    .email()
+    .when("token", { is: null, then: Joi.string().email().required() })
+    .when("token", { not: null, then: Joi.forbidden() }),
 };
 
 export const initiateReset = {
@@ -35,5 +39,6 @@ export const verifyReset = {
 
 export const updateReset = {
   token: Joi.string().required(),
-  password: Joi.string(),
+  password: passwordComplexity(),
+  logOtherDevicesOut: Joi.boolean().default(false),
 };
