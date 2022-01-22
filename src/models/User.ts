@@ -6,7 +6,6 @@ const User = db.define(
   "User",
   {
     id: { type: DataTypes.UUID, primaryKey: true },
-    username: { type: DataTypes.STRING, allowNull: false, unique: true },
     email: { type: DataTypes.STRING, allowNull: false, unique: true },
     firstname: { type: DataTypes.STRING },
     lastname: { type: DataTypes.STRING },
@@ -63,17 +62,15 @@ const User = db.define(
   { timestamps: true, tableName: "user" }
 );
 
-User.prototype.toJSON = function (admin = false) {
+User.prototype.toJSON = function () {
   const data = this.dataValues;
 
   delete data.password;
-
-  if (!admin) {
-    delete data.isDeleted;
-    delete data.active;
-    delete data.role;
-    delete data.permissions;
-  }
+  delete data.isDeleted;
+  delete data.active;
+  delete data.role;
+  delete data.permissions;
+  delete data.loginValidFrom;
 
   return data;
 };

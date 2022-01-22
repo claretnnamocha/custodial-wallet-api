@@ -123,7 +123,7 @@ definitions:
   signIn:
     type: object
     properties:
-      user:
+      email:
         type: string
         required: true
       password:
@@ -136,9 +136,6 @@ definitions:
         type: string
       lastname:
         type: string
-      username:
-        type: string
-        required: true
       email:
         type: string
         required: true

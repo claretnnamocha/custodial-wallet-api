@@ -4,9 +4,16 @@ export interface LoggedIn {
   pageSize?: number;
 }
 
-export interface Response {
+interface ServiceResponse {
   status: boolean;
   message: string;
   data?: any;
   metadata?: any;
 }
+
+interface ServiceAndCodeResponse {
+  payload: ServiceResponse;
+  code: number;
+}
+
+export type Response = ServiceResponse | ServiceAndCodeResponse;

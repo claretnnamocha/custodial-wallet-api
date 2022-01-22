@@ -6,6 +6,8 @@ import user from "./modules/user/routes";
 
 const routes = Router();
 
+const api = Router();
+
 routes.use("/auth", auth);
 
 routes.use(authenticate());
@@ -13,8 +15,10 @@ routes.use(authenticate());
 routes.use("/user", user);
 routes.use("/wallet", user);
 
-routes.use((_, res: Response) => {
+api.use("/api", routes);
+
+api.use((_, res: Response) => {
   response(res, { status: false, message: "Route not found" }, 404);
 });
 
-export default routes;
+export default api;

@@ -7,7 +7,13 @@ export const controller =
     try {
       const data = await fn(req);
 
-      return response(res, data, data.status ? 200 : 400);
+      if (data.code) {
+        const { code, payload } = data;
+        return response(res, payload, code);
+      }
+
+      const code = data.status ? 200 : 400;
+      return response(res, data, code);
     } catch (e) {
       return response(
         res,

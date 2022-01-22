@@ -17,7 +17,11 @@ export const getProfile = async (
 
     const data: UserSchema = await User.findByPk(userId);
 
-    if (!data) return { status: false, message: "Profile not found" };
+    if (!data)
+      return {
+        payload: { status: false, message: "Profile not found" },
+        code: 404,
+      };
 
     return { status: true, message: "Profile", data };
   } catch (error) {

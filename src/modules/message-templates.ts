@@ -1,14 +1,14 @@
 import { v4 as uuid } from "uuid";
 const { FRONTEND_BASEURL } = process.env;
 
-export const registration = ({ token, username, email }) => {
+export const registration = ({ token, firstname, email }) => {
   const link = `${FRONTEND_BASEURL}/auth/verify?token=${token}`;
 
   return {
-    text: `Dear ${username}, Your registration on custodial wallet is successful. your token is ${token}`,
+    text: `Dear ${firstname}, Your registration on custodial wallet is successful. your token is ${token}`,
     html: `
       <p>
-        Dear ${username},
+        Dear ${firstname},
         <span style="display: none !important">${uuid()}</span>
       </p>
       Your registration on custodial wallet is successful.<br>
@@ -26,14 +26,14 @@ export const registration = ({ token, username, email }) => {
   };
 };
 
-export const verifyEmail = ({ token, username, email }) => {
-  const link = `${FRONTEND_BASEURL}/auth/verify?=token=${token}`;
+export const verifyEmail = ({ token, firstname, email }) => {
+  const link = `${FRONTEND_BASEURL}/auth/verify?token=${token}`;
 
   return {
-    text: `Dear ${username}, You requested to verify your email on custodial wallet. To verify to your email click here ${link}. Clicking this link will securely verify your account on my https://mycustodialwallet.herokuapp.com using ${email}`,
+    text: `Dear ${firstname}, You requested to verify your email on custodial wallet. To verify to your email click here ${link}. Clicking this link will securely verify your account on my https://mycustodialwallet.herokuapp.com using ${email}`,
     html: `
       <p>
-        Dear ${username},
+        Dear ${firstname},
         <span style="display: none !important">${uuid()}</span>
       </p>
         You requested to verify your email on custodial wallet.<br>
@@ -50,17 +50,17 @@ export const verifyEmail = ({ token, username, email }) => {
   };
 };
 
-export const verifyPhone = ({ token, username }) =>
-  `Dear ${username}, Your IghoApp verification code is ${token}`;
+export const verifyPhone = ({ token, firstname }) =>
+  `Dear ${firstname}, Your IghoApp verification code is ${token}`;
 
-export const resetPassword = ({ token, username }) => {
-  const link = `${FRONTEND_BASEURL}/forgot-password?token=${token}`;
+export const resetPassword = ({ token, firstname }) => {
+  const link = `${FRONTEND_BASEURL}/auth/verify-reset?token=${token}`;
 
   return {
-    text: `Dear ${username}, You requested to reset your password on custodial wallet. To reset to your password click here ${link}`,
+    text: `Dear ${firstname}, You requested to reset your password on custodial wallet. To reset to your password click here ${link}`,
     html: `
     <p>
-      Dear ${username},
+      Dear ${firstname},
       <span style="display: none !important">${uuid()}</span>
     </p>
       You requested to reset your password on custodial wallet.<br>

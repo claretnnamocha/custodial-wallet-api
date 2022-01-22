@@ -19,9 +19,9 @@ export const signUp = async (
   params: auth.SignUpRequest
 ): Promise<others.Response> => {
   try {
-    const { email, phone, username } = params;
+    const { email, firstname } = params;
 
-    for (const param of ["email", "username", "phone"]) {
+    for (const param of ["email", "phone"]) {
       const where: object = { [param]: params[param] };
       const duplicate: UserSchema = await User.findOne({ where });
       if (duplicate) {
@@ -46,7 +46,7 @@ export const signUp = async (
       length: 10,
     });
 
-    const { text, html } = msg.registration({ token, username, email });
+    const { text, html } = msg.registration({ token, firstname, email });
     mail.pepipost.send({
       to: email,
       subject: "Registration Complete",
@@ -74,33 +74,33 @@ export const signIn = async (
   params: auth.SignInRequest
 ): Promise<others.Response> => {
   try {
-    const { user, password } = params;
+    const { email, password } = params;
 
-    const _user: UserSchema = await User.findOne({
-      where: { [Op.or]: [{ username: user }, { email: user }] },
+    const user: UserSchema = await User.findOne({
+      where: { email },
     });
 
-    if (!_user || !bcrypt.compareSync(password, _user.password)) {
+    if (!user || !bcrypt.compareSync(password, user.password)) {
       return { status: false, message: "Invalid username or password" };
     }
 
-    if (!_user.active) {
+    if (!user.active) {
       return { status: false, message: "Account is banned contact admin" };
     }
 
-    if (!_user.verifiedemail) {
+    if (!user.verifiedemail) {
       const token: string = await generateToken({
-        userId: _user.id,
+        userId: user.id,
         length: 10,
       });
 
       const { text, html } = msg.verifyEmail({
         token,
-        username: _user.username,
-        email: _user.email,
+        firstname: user.firstname,
+        email: user.email,
       });
       mail.pepipost.send({
-        to: _user.email,
+        to: user.email,
         subject: "Verify your email",
         text,
         html,
@@ -109,10 +109,9 @@ export const signIn = async (
       return { status: false, message: "Please verify your email" };
     }
 
-    const data: any = _user.toJSON();
-    data.token = jwt.generate({
-      payload: _user.id,
-      loginValidFrom: _user.loginValidFrom,
+    const data = jwt.generate({
+      payload: user.id,
+      loginValidFrom: user.loginValidFrom,
     });
 
     return { status: true, message: "Login successful", data };
@@ -149,7 +148,7 @@ export const verifyAccount = async (
 
       const { text, html } = msg.verifyEmail({
         token,
-        username: user.username,
+        firstname: user.firstname,
         email: user.email,
       });
       mail.pepipost.send({
@@ -221,7 +220,7 @@ export const initiateReset = async (
 
     const { text, html } = msg.resetPassword({
       token,
-      username: user.username,
+      firstname: user.firstname,
     });
     mail.pepipost.send({
       to: user.email,

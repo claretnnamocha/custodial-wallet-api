@@ -15,26 +15,6 @@ paths:
         500:
           description: Server down
 
-  /user/verify-phone:
-    get:
-      tags:
-        - User
-      produces:
-        - application/json
-      security:
-        - Bearer: []
-      parameters:
-        - in: query
-          name: token
-          type: string
-      responses:
-        200:
-          description: Success
-        400:
-          description: Error
-        500:
-          description: Server down
-
   /user/log-other-devices-out:
     post:
       tags:
@@ -131,8 +111,4 @@ definitions:
       lastname:
         type: string
       avatar:
-        type: string
-      dob:
-        type: string
-      location:
         type: string

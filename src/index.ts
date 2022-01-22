@@ -1,15 +1,15 @@
 import cors from "cors";
-import express, { NextFunction, Request, Response } from "express";
+import express, { Request, Response } from "express";
 import formdata from "express-form-data";
 import swaggerUi from "swagger-ui-express";
+import { displayName } from "../package.json";
 import { bullBoard, db, env, security, swagger } from "./configs";
 import { response } from "./helpers";
 import routes from "./routes";
-import { displayName } from "../package.json";
 
 const app = express();
 const port: number = env.port;
-db.authenticate(db.db);
+db.authenticate({});
 
 app.use(formdata.parse());
 app.use(express.json({ limit: "100mb", type: "application/json" }));
@@ -23,7 +23,7 @@ security.lock(app);
 
 app.use("", routes);
 
-app.use((err: Error, _: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _: Request, res: Response) => {
   return response(
     res,
     { status: false, message: `Internal server error: ${err.message}` },
