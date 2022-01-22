@@ -1,5 +1,7 @@
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { DataTypes } from "sequelize";
+import { walletSecret } from "../configs/env";
 import { db } from "../configs/db";
 
 const User = db.define(
@@ -11,6 +13,7 @@ const User = db.define(
     lastname: { type: DataTypes.STRING },
     othernames: { type: DataTypes.STRING },
     avatar: { type: DataTypes.STRING },
+    ethereumAddress: { type: DataTypes.STRING },
     role: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -29,6 +32,12 @@ const User = db.define(
       set(value: string) {
         const salt = bcrypt.genSaltSync();
         this.setDataValue("password", bcrypt.hashSync(value, salt));
+      },
+    },
+    ethereumAccount: {
+      type: DataTypes.TEXT,
+      set(value: string) {
+        this.setDataValue("ethereumAccount", jwt.sign(value, walletSecret));
       },
     },
     gender: { type: DataTypes.STRING },
@@ -71,6 +80,7 @@ User.prototype.toJSON = function () {
   delete data.role;
   delete data.permissions;
   delete data.loginValidFrom;
+  delete data.ethereumAccount;
 
   return data;
 };

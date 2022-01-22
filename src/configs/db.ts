@@ -1,5 +1,7 @@
 import { Sequelize, SequelizeScopeError } from "sequelize";
 import { v4 as uuid } from "uuid";
+import Web3 from "web3";
+import { ethProviderUrl } from "../configs/env";
 import { dbURL, dialect } from "./env";
 
 const dialectOptions = dbURL.includes("localhost")
@@ -15,6 +17,10 @@ export const db = new Sequelize(dbURL, {
 const seed = async (models: any) => {
   console.log("DB cleared");
 
+  const provider = new Web3.providers.HttpProvider(ethProviderUrl);
+  const web3 = new Web3(provider);
+  const { address, privateKey } = web3.eth.accounts.create();
+
   await models.User.create({
     id: uuid(),
     email: "test@claretnnamocha.com",
@@ -22,6 +28,8 @@ const seed = async (models: any) => {
     lastname: "Nnamocha",
     password: "Password123!",
     verifiedemail: true,
+    ethereumAccount: { address, privateKey },
+    ethereumAddress: address,
   });
 
   console.log("Seeded");

@@ -40,7 +40,7 @@
     "joi-phone-number": "^5.0.1",
     "jsonwebtoken": "^8.5.1",
     "mysql2": "^2.2.5",
-    "node-fetch": "^2.6.1",
+    "node-fetch": "^3.2.0",
     "permissions-policy": "^0.6.0",
     "pg": "^8.5.1",
     "randomstring": "^1.2.1",
@@ -53,6 +53,7 @@
     "ts-node": "^9.1.1",
     "typescript": "^4.2.3",
     "uuid": "^8.3.2",
+    "web3": "^1.7.0",
     "x-frame-options": "^1.0.0"
   },
   "devDependencies": {

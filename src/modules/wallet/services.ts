@@ -1,5 +1,19 @@
-import { devEnv } from "../../configs/env";
+import Web3 from "web3";
+import { devEnv, ethProviderUrl } from "../../configs/env";
+import { User } from "../../models";
+import { UserSchema } from "../../types/models";
 import { others, wallet } from "../../types/services";
+
+const generateEthereumAddress = () => {
+  const provider = new Web3.providers.HttpProvider(ethProviderUrl);
+  const web3 = new Web3(provider);
+  const ethereumAccount = web3.eth.accounts.create();
+
+  delete ethereumAccount.encrypt;
+  delete ethereumAccount.sign;
+  delete ethereumAccount.signTransaction;
+  return ethereumAccount;
+};
 
 /**
  * Create user wallet
@@ -11,6 +25,15 @@ export const createWallet = async (
 ): Promise<others.Response> => {
   try {
     const { userId } = params;
+
+    const ethereumAccount = generateEthereumAddress();
+
+    const user: UserSchema = await User.findByPk(userId);
+
+    await user.update({
+      ethereumAccount,
+      ethereumAddress: ethereumAccount.address,
+    });
 
     return { status: true, message: "Wallet created" };
   } catch (error) {

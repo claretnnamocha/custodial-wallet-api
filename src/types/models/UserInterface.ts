@@ -9,6 +9,8 @@ export interface UserInterface {
   gender?: string;
   role?: string;
   location?: string;
+  ethereumAddress?: string;
+  ethereumAccount?: string | any;
   dob?: Date;
   deleted?: boolean;
   verifiedemail?: boolean;
