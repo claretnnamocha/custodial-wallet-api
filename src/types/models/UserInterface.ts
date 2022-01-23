@@ -11,6 +11,8 @@ export interface UserInterface {
   location?: string;
   ethereumAddress?: string;
   ethereumAccount?: string | any;
+  bitcoinAddress?: string;
+  bitcoinAccount?: string | any;
   dob?: Date;
   deleted?: boolean;
   verifiedemail?: boolean;
@@ -18,6 +20,7 @@ export interface UserInterface {
   active?: boolean;
   createdAt?: Date;
   loginValidFrom?: string;
+  resolveAccount?: Function;
   transform?: Function;
   validatePassword?: Function;
   updatedAt?: Date;

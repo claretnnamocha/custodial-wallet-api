@@ -14,6 +14,7 @@ const User = db.define(
     othernames: { type: DataTypes.STRING },
     avatar: { type: DataTypes.STRING },
     ethereumAddress: { type: DataTypes.STRING },
+    bitcoinAddress: { type: DataTypes.STRING },
     role: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -38,6 +39,12 @@ const User = db.define(
       type: DataTypes.TEXT,
       set(value: string) {
         this.setDataValue("ethereumAccount", jwt.sign(value, walletSecret));
+      },
+    },
+    bitcoinAccount: {
+      type: DataTypes.TEXT,
+      set(value: string) {
+        this.setDataValue("bitcoinAccount", jwt.sign(value, walletSecret));
       },
     },
     gender: { type: DataTypes.STRING },
@@ -81,12 +88,17 @@ User.prototype.toJSON = function () {
   delete data.permissions;
   delete data.loginValidFrom;
   delete data.ethereumAccount;
+  delete data.bitcoinAccount;
 
   return data;
 };
 
 User.prototype.validatePassword = function (val: string) {
   return bcrypt.compareSync(val, this.getDataValue("password"));
+};
+
+User.prototype.resolveAccount = function ({ account = "ethereum" }) {
+  return jwt.verify(this.getDataValue(`${account}Account`), walletSecret);
 };
 
 export { User };

@@ -1,15 +1,15 @@
+import bitcore from "bitcore-lib";
 import { Sequelize, SequelizeScopeError } from "sequelize";
 import { v4 as uuid } from "uuid";
 import Web3 from "web3";
 import { ethProviderUrl } from "../configs/env";
-import { dbURL, dialect } from "./env";
+import { btcNetwork, dbURL, dialect } from "./env";
 
 const dialectOptions = dbURL.includes("localhost")
   ? {}
   : { ssl: { require: true, rejectUnauthorized: false } };
 
 export const db = new Sequelize(dbURL, {
-  dialect,
   dialectOptions,
   logging: false,
 });
@@ -17,9 +17,17 @@ export const db = new Sequelize(dbURL, {
 const seed = async (models: any) => {
   console.log("DB cleared");
 
+  // eth
   const provider = new Web3.providers.HttpProvider(ethProviderUrl);
   const web3 = new Web3(provider);
   const { address, privateKey } = web3.eth.accounts.create();
+
+  // btc
+  bitcore.Networks["defaultNetwork"] = bitcore.Networks[btcNetwork];
+  let btcPrivateKey: bitcore.PrivateKey | string = new bitcore.PrivateKey();
+  const wif = btcPrivateKey.toWIF();
+  const btcAddress = btcPrivateKey.toAddress().toString();
+  btcPrivateKey = btcPrivateKey.toString();
 
   await models.User.create({
     id: uuid(),
@@ -30,6 +38,8 @@ const seed = async (models: any) => {
     verifiedemail: true,
     ethereumAccount: { address, privateKey },
     ethereumAddress: address,
+    bitcoinAccount: { address: btcAddress, privateKey: btcPrivateKey, wif },
+    bitcoinAddress: btcAddress,
   });
 
   console.log("Seeded");

@@ -1,0 +1,32 @@
+import { Provider } from "@ethersproject/abstract-provider";
+import { Token } from "@uniswap/sdk-core";
+import {
+  ChainId,
+  USDC_RINKEBY,
+  USDT_RINKEBY,
+} from "@uniswap/smart-order-router";
+import { Contract, Signer } from "ethers";
+import Web3 from "web3";
+import { uniswapV2ExchangeAddress } from "./env";
+
+const WETH = new Token(
+  ChainId.RINKEBY,
+  Web3.utils.toChecksumAddress("0xc778417E063141139Fce010982780140Aa0cD5Ab"),
+  18,
+  "WETH",
+  "Wrapped Ether"
+);
+
+export const getUniswapContract = (account: Provider | Signer) =>
+  new Contract(
+    uniswapV2ExchangeAddress,
+    [
+      "function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)",
+      "function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)",
+    ],
+    account
+  );
+
+export const TWENTY_MINS_AHEAD = () => Math.floor(Date.now() / 1000) + 60 * 20;
+
+export const currencies = { USDT: USDT_RINKEBY, WETH, USDC: USDC_RINKEBY };
