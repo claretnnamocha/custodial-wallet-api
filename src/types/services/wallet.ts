@@ -7,13 +7,6 @@ export interface GetRequest {
   walletId: string;
 }
 
-export interface Transfer {
-  userId: string;
-  to: string;
-  amount: number;
-  currency: string;
-}
-
 export interface Erc20ToEth {
   amount: number;
   userId: string;

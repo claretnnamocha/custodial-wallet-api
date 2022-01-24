@@ -1,6 +1,6 @@
 paths:
-  /wallet/my-wallets:
-    get:
+  /wallet/eth-to-erc20:
+    post:
       tags:
         - Wallet
       produces:
@@ -8,16 +8,11 @@ paths:
       security:
         - Bearer: []
       parameters:
-        - in: query
-          name: page
-          type: integer
-          default: 1
+        - in: body
+          name: request
           required: true
-        - in: query
-          name: pageSize
-          type: integer
-          default: 10
-          required: true
+          schema:
+            $ref: "#/definitions/erc20ToEth"
       responses:
         200:
           description: Success
@@ -25,3 +20,105 @@ paths:
           description: Error
         500:
           description: Server down
+
+  /wallet/erc20-to-eth:
+    post:
+      tags:
+        - Wallet
+      produces:
+        - application/json
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/erc20ToEth"
+      responses:
+        200:
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
+
+  /wallet/send-ecr20:
+    post:
+      tags:
+        - Wallet
+      produces:
+        - application/json
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/sendErc20"
+      responses:
+        200:
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
+
+  /wallet/send-eth:
+    post:
+      tags:
+        - Wallet
+      produces:
+        - application/json
+      security:
+        - Bearer: []
+      parameters:
+        - in: body
+          name: request
+          required: true
+          schema:
+            $ref: "#/definitions/sendEth"
+      responses:
+        200:
+          description: Success
+        400:
+          description: Error
+        500:
+          description: Server down
+
+definitions:
+  erc20ToEth:
+    type: object
+    properties:
+      amount:
+        type: integer
+        required: true
+      currency:
+        type: string
+        required: true
+  sendErc20:
+    type: object
+    properties:
+      amount:
+        type: integer
+        required: true
+      currency:
+        type: string
+        required: true
+      to:
+        type: string
+        required: true
+      chargeFromAmount:
+        type: boolean
+        default: false
+        required: true
+  sendEth:
+    type: object
+    properties:
+      amount:
+        type: integer
+        required: true
+      to:
+        type: string
+        required: true

@@ -91,32 +91,6 @@ export const createWallet = async (
 };
 
 /**
- * Get all user wallets
- * @param {others.LoggedIn} params  Request Body
- * @returns {others.Response} Contains status, message and data if any of the operation
- */
-export const getMyWallets = async (
-  params: others.LoggedIn
-): Promise<others.Response> => {
-  try {
-    const { userId } = params;
-
-    const where = { "user.id": userId, isDeleted: false };
-
-    return {
-      status: true,
-      message: "My wallets",
-      data: [],
-    };
-  } catch (error) {
-    return {
-      status: false,
-      message: "Error trying to get wallets".concat(devEnv ? ": " + error : ""),
-    };
-  }
-};
-
-/**
  * Swap eth to erc20 token
  * @param {wallet.Erc20ToEth} params  Request Body
  * @returns {others.Response} Contains status, message and data if any of the operation
