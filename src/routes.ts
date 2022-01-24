@@ -19,6 +19,7 @@ routes.use("/wallet", wallet);
 
 api.use("/api", routes);
 
+
 api.use((_, res: Response) => {
   response(res, { status: false, message: "Route not found" }, 404);
 });
