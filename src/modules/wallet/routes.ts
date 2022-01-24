@@ -12,7 +12,7 @@ routes.post(
 );
 
 routes.post(
-  "/ecr20-to-eth",
+  "/erc20-to-eth",
   validate(validator.erc20ToEth),
   controller(wallet.erc20ToEth)
 );
