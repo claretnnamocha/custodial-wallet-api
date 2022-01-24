@@ -1,4 +1,5 @@
 import { Provider } from "@ethersproject/abstract-provider";
+import { Percent } from "@uniswap/sdk";
 import { Token } from "@uniswap/sdk-core";
 import {
   ChainId,
@@ -26,6 +27,18 @@ export const getUniswapContract = (account: Provider | Signer) =>
     ],
     account
   );
+
+export const getContract = (address: string, account: Provider | Signer) =>
+  new Contract(
+    address,
+    [
+      "function approve(address _spender, uint256 _value) public returns (bool success)",
+      "function transferFrom(address sender, address recipient, uint256 amount) external returns (bool)",
+    ],
+    account
+  );
+
+export const slippageTolerance = new Percent("50", "10000");
 
 export const TWENTY_MINS_AHEAD = () => Math.floor(Date.now() / 1000) + 60 * 20;
 

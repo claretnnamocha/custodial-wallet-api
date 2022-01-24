@@ -1,7 +1,6 @@
 import { JsonRpcProvider } from "@ethersproject/providers";
 import {
   Fetcher,
-  Percent,
   Route,
   Token,
   TokenAmount,
@@ -9,6 +8,7 @@ import {
   TradeType,
   WETH,
 } from "@uniswap/sdk";
+import { MaxUint256 } from "@uniswap/sdk-core";
 // import { Currency, TradeType } from "@uniswap/sdk-core";
 // import { AlphaRouter, ChainId, parseAmount } from "@uniswap/smart-order-router";
 import bitcore from "bitcore-lib";
@@ -16,7 +16,9 @@ import { BigNumber, Wallet } from "ethers";
 import Web3 from "web3";
 import {
   currencies,
+  getContract,
   getUniswapContract,
+  slippageTolerance,
   TWENTY_MINS_AHEAD,
 } from "../../configs/constants";
 import {
@@ -24,6 +26,7 @@ import {
   devEnv,
   ethChainId,
   ethProviderUrl,
+  uniswapV2ExchangeAddress,
 } from "../../configs/env";
 import { User } from "../../models";
 import { UserSchema } from "../../types/models";
@@ -240,8 +243,6 @@ export const EthToErc20V2 = async (
 
     const trade = new Trade(route, amount, TradeType.EXACT_INPUT);
 
-    const slippageTolerance = new Percent("50", "10000");
-
     let amountOutMin: any = trade.minimumAmountOut(slippageTolerance).raw;
     amountOutMin = BigNumber.from(amountOutMin.toString()).toHexString();
 
@@ -302,6 +303,7 @@ export const Erc20ToEthV2 = async (
         code: 404,
       };
     }
+
     const weth = WETH[ethChainId];
 
     const provider = new JsonRpcProvider(ethProviderUrl);
@@ -317,12 +319,24 @@ export const Erc20ToEthV2 = async (
     const recipient = Web3.utils.toChecksumAddress(user.ethereumAddress);
     const { privateKey } = user.resolveAccount({});
 
-    const pair = await Fetcher.fetchPairData(weth, currency, provider);
-    const route = new Route([pair], weth, currency);
+    const signer = new Wallet(privateKey);
+    const account = signer.connect(provider);
+
+    const gasLimit = BigNumber.from(500000).toHexString();
+
+    const contract = getContract(currency.address, account);
+
+    await contract.transferFrom(recipient, uniswapV2ExchangeAddress, amountIn, {
+      gasLimit,
+    });
+
+    await contract.approve(uniswapV2ExchangeAddress, MaxUint256.toString());
+
+    const pair = await Fetcher.fetchPairData(currency, weth, provider);
+
+    const route = new Route([pair], weth);
 
     const trade = new Trade(route, amount, TradeType.EXACT_OUTPUT);
-
-    const slippageTolerance = new Percent("50", "10000");
 
     let amountOutMin: any = trade.minimumAmountOut(slippageTolerance).raw;
     amountOutMin = BigNumber.from(amountOutMin.toString()).toHexString();
@@ -330,14 +344,9 @@ export const Erc20ToEthV2 = async (
     const path = [currency.address, weth.address];
     const deadline = TWENTY_MINS_AHEAD();
 
-    const signer = new Wallet(privateKey);
-    const account = signer.connect(provider);
-
     const uniswap = getUniswapContract(account);
 
     const gasPrice = (await provider.getGasPrice()).toHexString();
-    const gasLimit = BigNumber.from(500000).toHexString();
-    console.log("ll");
 
     await uniswap.swapExactTokensForETH(
       amountIn,
@@ -347,8 +356,6 @@ export const Erc20ToEthV2 = async (
       deadline,
       { gasPrice, gasLimit }
     );
-
-    console.log("done", recipient);
 
     return {
       status: true,
@@ -369,5 +376,5 @@ export const Erc20ToEthV2 = async (
 // Erc20ToEthV2({
 //   userId: "62cf3678-6ba3-4db9-9b67-fd6f835c4f68",
 //   currency: "USDC",
-//   amount: 600,
+//   amount: 400,
 // });
