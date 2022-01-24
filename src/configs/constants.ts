@@ -44,4 +44,6 @@ export const slippageTolerance = new Percent("50", "10000");
 
 export const TWENTY_MINS_AHEAD = () => Math.floor(Date.now() / 1000) + 60 * 20;
 
+export const coinGeckMap = { USDT: "tether", WETH: "weth", USDC: "usd-coin" };
+
 export const currencies = { USDT: USDT_RINKEBY, WETH, USDC: USDC_RINKEBY };

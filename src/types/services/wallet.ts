@@ -24,5 +24,6 @@ export interface SendErc20Token {
   amount: number;
   userId: string;
   to: string;
+  chargeFromAmount: boolean;
   currency: string;
 }

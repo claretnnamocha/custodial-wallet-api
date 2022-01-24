@@ -10,10 +10,13 @@ import {
 } from "@uniswap/sdk";
 import { MaxUint256 } from "@uniswap/sdk-core";
 import bitcore from "bitcore-lib";
+import { Transaction as Tx } from "ethereumjs-tx";
 import { BigNumber, Wallet } from "ethers";
 import { parseEther } from "ethers/lib/utils";
+import fetch from "node-fetch";
 import Web3 from "web3";
 import {
+  coinGeckMap,
   currencies,
   getTokenContract,
   getUniswapContract,
@@ -59,40 +62,6 @@ const generateBitcoinAddress = () => {
  * @returns {others.Response} Contains status, message and data if any of the operation
  */
 export const createWallet = async (
-  params: wallet.CreateRequest
-): Promise<others.Response> => {
-  try {
-    const { userId } = params;
-
-    const ethereumAccount = generateEthereumAddress();
-    const bitcoinAccount = generateBitcoinAddress();
-
-    const user: UserSchema = await User.findByPk(userId);
-
-    await user.update({
-      ethereumAccount,
-      ethereumAddress: ethereumAccount.address,
-      bitcoinAccount,
-      bitcoinAddress: bitcoinAccount.address,
-    });
-
-    return { status: true, message: "Wallet created" };
-  } catch (error) {
-    return {
-      status: false,
-      message: "Error trying to create wallet".concat(
-        devEnv ? ": " + error : ""
-      ),
-    };
-  }
-};
-
-/**
- * Tranfer
- * @param {wallet.CreateRequest} params  Request Body
- * @returns {others.Response} Contains status, message and data if any of the operation
- */
-export const transfer = async (
   params: wallet.CreateRequest
 ): Promise<others.Response> => {
   try {
@@ -175,7 +144,6 @@ export const ethToErc20V3 = async (
     //   chainId: ChainId.RINKEBY,
     //   provider: new JsonRpcProvider(ethProviderUrl),
     // });
-    // console.log({
     //   amount,
     //   currency,
     //   tradeType: TradeType.EXACT_INPUT,
@@ -192,7 +160,6 @@ export const ethToErc20V3 = async (
     // const provider = new Web3.providers.HttpProvider(ethProviderUrl);
     // const web3 = new Web3(provider);
     // web3.eth.sendTransaction(transaction);
-    // console.log("done");
   } catch (error) {
     return {
       status: false,
@@ -303,12 +270,11 @@ export const erc20ToEthV2 = async (
 
     const provider = new JsonRpcProvider(ethProviderUrl);
 
-    const amount = new TokenAmount(
-      currency,
+    const amountIn = parseInt(
       (tempAmount * Math.pow(10, currency.decimals)).toString()
-    );
+    ).toString();
 
-    const amountIn = (tempAmount * Math.pow(10, currency.decimals)).toString();
+    const amount = new TokenAmount(currency, amountIn);
 
     const user: UserSchema = await User.findByPk(userId);
     const recipient = Web3.utils.toChecksumAddress(user.ethereumAddress);
@@ -380,6 +346,7 @@ export const sendErc20Token = async (
       currency: tempCurrency,
       to: tempTo,
       userId,
+      chargeFromAmount,
     } = params;
 
     const currency: Token = currencies[tempCurrency];
@@ -398,16 +365,21 @@ export const sendErc20Token = async (
     const web3 = new Web3(ethProviderUrl);
     const user: UserSchema = await User.findByPk(userId);
     const from = Web3.utils.toChecksumAddress(user.ethereumAddress);
-    const { privateKey } = user.resolveAccount({});
+    let { privateKey } = user.resolveAccount({});
+
+    if (privateKey.length == 66) privateKey = privateKey.substring(2);
+    const privateKeyBuffer = Buffer.from(privateKey, "hex");
 
     const signer = new Wallet(privateKey);
     const account = signer.connect(provider);
 
-    const gasPrice = (await provider.getGasPrice()).toHexString();
-    const gasLimit = BigNumber.from(500000).toHexString();
+    let gasPrice = await web3.eth.getGasPrice();
+    gasPrice = Web3.utils.toHex(gasPrice);
 
     const contract = getTokenContract(currency.address, account);
-    const balance = await contract.balanceOf(from);
+
+    let balance = await contract.balanceOf(from);
+    balance = web3.utils.hexToNumberString(balance);
 
     if (balance < amount) {
       return {
@@ -415,6 +387,73 @@ export const sendErc20Token = async (
         message: `You dont have enough ${tempCurrency}`,
       };
     }
+
+    const nonce = await web3.eth.getTransactionCount(from);
+
+    let rawTransaction: any = {
+      from,
+      gasPrice,
+      to: currency.address,
+      value: "0x0",
+      data: contract.interface.encodeFunctionData("transfer", [to, amount]),
+      nonce,
+    };
+
+    const gasLimit = await web3.eth.estimateGas(rawTransaction);
+
+    let rate = gasLimit * parseInt(gasPrice);
+
+    console.log(gasLimit, gasPrice);
+
+    let charge: any = await getECR20Charge({ rate, currency: tempCurrency });
+    const tempCharge = BigNumber.from(
+      Math.ceil(charge * Math.pow(10, currency.decimals))
+    ).toString();
+
+    if (chargeFromAmount) {
+      if (amount < tempCharge) {
+        return {
+          status: false,
+          message: `Charge is greatet the amount`,
+        };
+      }
+
+      let newAmount = BigNumber.from(amount)
+        .sub(BigNumber.from(tempCharge))
+        .toString();
+
+      rawTransaction.data = contract.interface.encodeFunctionData("transfer", [
+        to,
+        newAmount,
+      ]);
+
+      rate = gasLimit * parseInt(gasPrice);
+    } else {
+      let newAmount = BigNumber.from(amount).add(tempCharge).toString();
+
+      if (balance < newAmount) {
+        return {
+          status: false,
+          message: `You dont have enough ${tempCurrency}`,
+        };
+      }
+    }
+
+    const { status, message }: any = await erc20ToEthV2({
+      userId,
+      currency: tempCurrency,
+      amount: charge,
+    });
+
+    if (!status) return { status, message };
+
+    // let transaction = new Tx(rawTransaction);
+
+    // transaction.sign(privateKeyBuffer);
+
+    // web3.eth.sendSignedTransaction(
+    //   "0x" + transaction.serialize().toString("hex")
+    // );
 
     await contract.transfer(to, amount);
 
@@ -430,6 +469,26 @@ export const sendErc20Token = async (
       ),
     };
   }
+};
+
+const getECR20Charge = async ({ currency, rate }) => {
+  let res = await fetch(
+    `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckMap[currency]}&vs_currencies=usd`
+  );
+  const {
+    [coinGeckMap[currency]]: { usd: quote },
+  }: any = await res.json();
+
+  res = await fetch(
+    `https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd`
+  );
+  const {
+    ethereum: { usd: base },
+  }: any = await res.json();
+
+  const unitPrice = quote / base;
+  rate = rate / Math.pow(10, 18);
+  return unitPrice / rate;
 };
 
 /**
