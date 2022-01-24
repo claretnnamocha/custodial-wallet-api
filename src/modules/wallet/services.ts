@@ -9,14 +9,13 @@ import {
   WETH,
 } from "@uniswap/sdk";
 import { MaxUint256 } from "@uniswap/sdk-core";
-// import { Currency, TradeType } from "@uniswap/sdk-core";
-// import { AlphaRouter, ChainId, parseAmount } from "@uniswap/smart-order-router";
 import bitcore from "bitcore-lib";
 import { BigNumber, Wallet } from "ethers";
+import { parseEther } from "ethers/lib/utils";
 import Web3 from "web3";
 import {
   currencies,
-  getContract,
+  getTokenContract,
   getUniswapContract,
   slippageTolerance,
   TWENTY_MINS_AHEAD,
@@ -150,11 +149,11 @@ export const getMyWallets = async (
 
 /**
  * Swap eth to erc20 token
- * @param {wallet.GetRequest} params  Request Body
+ * @param {wallet.Erc20ToEth} params  Request Body
  * @returns {others.Response} Contains status, message and data if any of the operation
  * @deprecated v3 auto router has unresolved issues
  */
-export const EthToErc20V3 = async (
+export const ethToErc20V3 = async (
   params: wallet.Erc20ToEth
 ): Promise<others.Response> => {
   try {
@@ -206,10 +205,10 @@ export const EthToErc20V3 = async (
 
 /**
  * Swap eth to erc20 token
- * @param {wallet.GetRequest} params  Request Body
+ * @param {wallet.Erc20ToEth} params  Request Body
  * @returns {others.Response} Contains status, message and data if any of the operation
  */
-export const EthToErc20V2 = async (
+export const ethToErc20V2 = async (
   params: wallet.Erc20ToEth
 ): Promise<others.Response> => {
   try {
@@ -282,10 +281,10 @@ export const EthToErc20V2 = async (
 
 /**
  * Swap erc20 token to eth
- * @param {wallet.GetRequest} params  Request Body
+ * @param {wallet.Erc20ToEth} params  Request Body
  * @returns {others.Response} Contains status, message and data if any of the operation
  */
-export const Erc20ToEthV2 = async (
+export const erc20ToEthV2 = async (
   params: wallet.Erc20ToEth
 ): Promise<others.Response> => {
   try {
@@ -320,7 +319,7 @@ export const Erc20ToEthV2 = async (
 
     const gasLimit = BigNumber.from(500000).toHexString();
 
-    const contract = getContract(currency.address, account);
+    const contract = getTokenContract(currency.address, account);
 
     await contract.transferFrom(recipient, uniswapV2ExchangeAddress, amountIn, {
       gasLimit,
@@ -363,6 +362,118 @@ export const Erc20ToEthV2 = async (
       message: "Error trying to swap erc20 token to eth".concat(
         devEnv ? ": " + error : ""
       ),
+    };
+  }
+};
+
+/**
+ * Send ERC20 token
+ * @param {wallet.SendErc20Token} params  Request Body
+ * @returns {others.Response} Contains status, message and data if any of the operation
+ */
+export const sendErc20Token = async (
+  params: wallet.SendErc20Token
+): Promise<others.Response> => {
+  try {
+    const {
+      amount: tempAmount,
+      currency: tempCurrency,
+      to: tempTo,
+      userId,
+    } = params;
+
+    const currency: Token = currencies[tempCurrency];
+    const to = Web3.utils.toChecksumAddress(tempTo);
+
+    if (!currency) {
+      return {
+        payload: { status: false, message: "Currency not found" },
+        code: 404,
+      };
+    }
+
+    const amount = (tempAmount * Math.pow(10, currency.decimals)).toString();
+
+    const provider = new JsonRpcProvider(ethProviderUrl);
+    const web3 = new Web3(ethProviderUrl);
+    const user: UserSchema = await User.findByPk(userId);
+    const from = Web3.utils.toChecksumAddress(user.ethereumAddress);
+    const { privateKey } = user.resolveAccount({});
+
+    const signer = new Wallet(privateKey);
+    const account = signer.connect(provider);
+
+    const gasPrice = (await provider.getGasPrice()).toHexString();
+    const gasLimit = BigNumber.from(500000).toHexString();
+
+    const contract = getTokenContract(currency.address, account);
+    const balance = await contract.balanceOf(from);
+
+    if (balance < amount) {
+      return {
+        status: false,
+        message: `You dont have enough ${tempCurrency}`,
+      };
+    }
+
+    await contract.transfer(to, amount);
+
+    return {
+      status: true,
+      message: `Successfully transffered ${tempAmount} ${tempCurrency} to ${to}`,
+    };
+  } catch (error) {
+    return {
+      status: false,
+      message: "Error trying to send erc20 token".concat(
+        devEnv ? ": " + error : ""
+      ),
+    };
+  }
+};
+
+/**
+ * Send ETH
+ * @param {wallet.SendErc20Token} params  Request Body
+ * @returns {others.Response} Contains status, message and data if any of the operation
+ */
+export const sendEth = async (
+  params: wallet.SendErc20Token
+): Promise<others.Response> => {
+  try {
+    const { amount: tempAmount, to: tempTo, userId } = params;
+
+    const to = Web3.utils.toChecksumAddress(tempTo);
+    const amount = parseEther(tempAmount.toString());
+
+    let tx = { to, value: amount };
+
+    const provider = new JsonRpcProvider(ethProviderUrl);
+    const web3 = new Web3(ethProviderUrl);
+    const user: UserSchema = await User.findByPk(userId);
+    const from = Web3.utils.toChecksumAddress(user.ethereumAddress);
+    const { privateKey } = user.resolveAccount({});
+
+    const wallet = new Wallet(privateKey, provider);
+    const balance = await web3.eth.getBalance(from);
+
+    if (balance.toString() < amount.toString()) {
+      return {
+        status: false,
+        message: `You dont have enough ETH`,
+      };
+    }
+
+    wallet.sendTransaction(tx);
+
+    return {
+      status: true,
+      message: `Successfully transferred ${tempAmount} ETH to ${to}`,
+    };
+  } catch (error) {
+    return {
+      status: false,
+      message: "Error trying to send eth".concat(devEnv ? ": " + error : ""),
     };
   }
 };

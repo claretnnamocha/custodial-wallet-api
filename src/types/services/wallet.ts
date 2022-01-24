@@ -19,3 +19,10 @@ export interface Erc20ToEth {
   userId: string;
   currency: string;
 }
+
+export interface SendErc20Token {
+  amount: number;
+  userId: string;
+  to: string;
+  currency: string;
+}
