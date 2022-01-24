@@ -195,8 +195,6 @@ export const EthToErc20V3 = async (
     // web3.eth.sendTransaction(transaction);
     // console.log("done");
   } catch (error) {
-    console.log("-log-", error);
-
     return {
       status: false,
       message: "Error trying to swap erc20 token to eth".concat(
@@ -273,8 +271,6 @@ export const EthToErc20V2 = async (
       message: `Successfully swapped ${tempAmount} ETH for ${tempCurrency}`,
     };
   } catch (error) {
-    console.log("-log-", error);
-
     return {
       status: false,
       message: "Error trying to swap erc20 token to eth".concat(
@@ -285,7 +281,7 @@ export const EthToErc20V2 = async (
 };
 
 /**
- * Swap eth to erc20 token
+ * Swap erc20 token to eth
  * @param {wallet.GetRequest} params  Request Body
  * @returns {others.Response} Contains status, message and data if any of the operation
  */
@@ -362,8 +358,6 @@ export const Erc20ToEthV2 = async (
       message: `Successfully swapped ${tempAmount} ${tempCurrency} for ETH`,
     };
   } catch (error) {
-    console.log("-log-", error);
-
     return {
       status: false,
       message: "Error trying to swap erc20 token to eth".concat(
@@ -372,9 +366,3 @@ export const Erc20ToEthV2 = async (
     };
   }
 };
-
-// Erc20ToEthV2({
-//   userId: "62cf3678-6ba3-4db9-9b67-fd6f835c4f68",
-//   currency: "USDC",
-//   amount: 400,
-// });
