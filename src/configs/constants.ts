@@ -1,21 +1,33 @@
 import { Provider } from "@ethersproject/abstract-provider";
 import { Percent } from "@uniswap/sdk";
 import { Token } from "@uniswap/sdk-core";
-import {
-  ChainId,
-  USDC_RINKEBY,
-  USDT_RINKEBY,
-} from "@uniswap/smart-order-router";
+import { ChainId } from "@uniswap/smart-order-router";
 import { Contract, Signer } from "ethers";
 import Web3 from "web3";
 import { uniswapV2ExchangeAddress } from "./env";
 
 const WETH = new Token(
   ChainId.RINKEBY,
-  Web3.utils.toChecksumAddress("0xc778417E063141139Fce010982780140Aa0cD5Ab"),
+  "0xc778417E063141139Fce010982780140Aa0cD5Ab",
   18,
   "WETH",
   "Wrapped Ether"
+);
+
+const USDC = new Token(
+  ChainId.RINKEBY,
+  "0x4DBCdF9B62e891a7cec5A2568C3F4FAF9E8Abe2b",
+  6,
+  "USDC",
+  "USD Coin"
+);
+
+const USDT = new Token(
+  ChainId.RINKEBY,
+  "0xD9BA894E0097f8cC2BBc9D24D308b98e36dc6D02",
+  18,
+  "USDT",
+  "Compound USDT"
 );
 
 export const getUniswapContract = (account: Provider | Signer) =>
@@ -46,4 +58,4 @@ export const TWENTY_MINS_AHEAD = () => Math.floor(Date.now() / 1000) + 60 * 20;
 
 export const coinGeckMap = { USDT: "tether", WETH: "weth", USDC: "usd-coin" };
 
-export const currencies = { USDT: USDT_RINKEBY, WETH, USDC: USDC_RINKEBY };
+export const currencies = { USDC, WETH, USDT };

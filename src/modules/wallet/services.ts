@@ -11,9 +11,11 @@ import {
 import { MaxUint256 } from "@uniswap/sdk-core";
 import bitcore from "bitcore-lib";
 import { Transaction as Tx } from "ethereumjs-tx";
-import { BigNumber, Wallet } from "ethers";
+import { BigNumber, ethers, Wallet } from "ethers";
 import { parseEther } from "ethers/lib/utils";
+import { toBn } from "evm-bn";
 import fetch from "node-fetch";
+import { v4 as uuid } from "uuid";
 import Web3 from "web3";
 import {
   coinGeckMap,
@@ -30,31 +32,11 @@ import {
   ethProviderUrl,
   uniswapV2ExchangeAddress,
 } from "../../configs/env";
-import { User } from "../../models";
+import { ApprovedAddress, User } from "../../models";
 import { UserSchema } from "../../types/models";
 import { others, wallet } from "../../types/services";
 
-const generateEthereumAddress = () => {
-  const provider = new Web3.providers.HttpProvider(ethProviderUrl);
-  const web3 = new Web3(provider);
-  const ethereumAccount = web3.eth.accounts.create();
-
-  delete ethereumAccount.encrypt;
-  delete ethereumAccount.sign;
-  delete ethereumAccount.signTransaction;
-  return ethereumAccount;
-};
-
-const generateBitcoinAddress = () => {
-  bitcore.Networks["defaultNetwork"] = bitcore.Networks[btcNetwork];
-
-  let privateKey: bitcore.PrivateKey | string = new bitcore.PrivateKey();
-  const wif = privateKey.toWIF();
-  const address = privateKey.toAddress().toString();
-  privateKey = privateKey.toString();
-
-  return { wif, address, privateKey };
-};
+const provider = new JsonRpcProvider(ethProviderUrl);
 
 /**
  * Create user wallet
@@ -94,60 +76,6 @@ export const createWallet = async (
  * Swap eth to erc20 token
  * @param {wallet.Erc20ToEth} params  Request Body
  * @returns {others.Response} Contains status, message and data if any of the operation
- * @deprecated v3 auto router has unresolved issues
- */
-export const ethToErc20V3 = async (
-  params: wallet.Erc20ToEth
-): Promise<others.Response> => {
-  try {
-    // const { currency: tempCurrency, amount: tempAmount, userId } = params;
-    // const currency: Currency = currencies[tempCurrency];
-    // if (!currency) {
-    //   return {
-    //     payload: { status: false, message: "Currency not found" },
-    //     code: 404,
-    //   };
-    // }
-    // const amount = parseAmount(
-    //   (tempAmount * Math.pow(10, currency.decimals)).toString(),
-    //   currency
-    // );
-    // const user: UserSchema = await User.findByPk(userId);
-    // const recipient = Web3.utils.toChecksumAddress(user.ethereumAddress);
-    // const router = new AlphaRouter({
-    //   chainId: ChainId.RINKEBY,
-    //   provider: new JsonRpcProvider(ethProviderUrl),
-    // });
-    //   amount,
-    //   currency,
-    //   tradeType: TradeType.EXACT_INPUT,
-    // });
-    // // Error after this line <-
-    // const route = await router.route(amount, currency, TradeType.EXACT_INPUT);
-    // const transaction = {
-    //   data: route.methodParameters.calldata,
-    //   to: uniswapRouterContract,
-    //   value: route.methodParameters.value,
-    //   from: recipient,
-    //   gasPrice: route.gasPriceWei.toString(),
-    // };
-    // const provider = new Web3.providers.HttpProvider(ethProviderUrl);
-    // const web3 = new Web3(provider);
-    // web3.eth.sendTransaction(transaction);
-  } catch (error) {
-    return {
-      status: false,
-      message: "Error trying to swap erc20 token to eth".concat(
-        devEnv ? ": " + error : ""
-      ),
-    };
-  }
-};
-
-/**
- * Swap eth to erc20 token
- * @param {wallet.Erc20ToEth} params  Request Body
- * @returns {others.Response} Contains status, message and data if any of the operation
  */
 export const ethToErc20V2 = async (
   params: wallet.Erc20ToEth
@@ -165,16 +93,14 @@ export const ethToErc20V2 = async (
     }
     const weth = WETH[ethChainId];
 
-    const provider = new JsonRpcProvider(ethProviderUrl);
-
     const amount = new TokenAmount(
       weth,
       (tempAmount * Math.pow(10, weth.decimals)).toString()
     );
 
-    const user: UserSchema = await User.findByPk(userId);
-    const recipient = Web3.utils.toChecksumAddress(user.ethereumAddress);
-    const { privateKey } = user.resolveAccount({});
+    const { wallet: account, ethereumAddress: recipient } = await getWallet({
+      userId,
+    });
 
     const pair = await Fetcher.fetchPairData(currency, weth, provider);
     const route = new Route([pair], weth);
@@ -182,16 +108,13 @@ export const ethToErc20V2 = async (
     const trade = new Trade(route, amount, TradeType.EXACT_INPUT);
 
     let amountOutMin: any = trade.minimumAmountOut(slippageTolerance).raw;
-    amountOutMin = BigNumber.from(amountOutMin.toString()).toHexString();
+    amountOutMin = BigNumber.from(amountOutMin).toHexString();
 
     const path = [weth.address, currency.address];
     const deadline = TWENTY_MINS_AHEAD();
 
     let inputAmount: any = trade.inputAmount.raw;
-    inputAmount = BigNumber.from(inputAmount.toString()).toHexString();
-
-    const signer = new Wallet(privateKey);
-    const account = signer.connect(provider);
+    inputAmount = BigNumber.from(inputAmount).toHexString();
 
     const uniswap = getUniswapContract(account);
 
@@ -242,30 +165,34 @@ export const erc20ToEthV2 = async (
 
     const weth = WETH[ethChainId];
 
-    const provider = new JsonRpcProvider(ethProviderUrl);
+    const amountIn = Math.floor(tempAmount * Math.pow(10, currency.decimals));
 
-    const amountIn = parseInt(
-      (tempAmount * Math.pow(10, currency.decimals)).toString()
-    ).toString();
+    const amount = new TokenAmount(currency, amountIn.toString());
 
-    const amount = new TokenAmount(currency, amountIn);
-
-    const user: UserSchema = await User.findByPk(userId);
-    const recipient = Web3.utils.toChecksumAddress(user.ethereumAddress);
-    const { privateKey } = user.resolveAccount({});
-
-    const signer = new Wallet(privateKey);
-    const account = signer.connect(provider);
+    const { wallet: account, ethereumAddress: recipient } = await getWallet({
+      userId,
+    });
 
     const gasLimit = BigNumber.from(500000).toHexString();
 
     const contract = getTokenContract(currency.address, account);
 
-    await contract.transferFrom(recipient, uniswapV2ExchangeAddress, amountIn, {
-      gasLimit,
+    const approvedAddress = await ApprovedAddress.findOne({
+      where: { ethereumAddress: recipient },
     });
 
-    await contract.approve(uniswapV2ExchangeAddress, MaxUint256.toString());
+    if (!approvedAddress) {
+      await contract.transferFrom(
+        recipient,
+        uniswapV2ExchangeAddress,
+        amountIn,
+        { gasLimit }
+      );
+
+      await contract.approve(uniswapV2ExchangeAddress, MaxUint256.toString());
+
+      await ApprovedAddress.create({ id: uuid(), ethereumAddress: recipient });
+    }
 
     const pair = await Fetcher.fetchPairData(currency, weth, provider);
 
@@ -273,8 +200,9 @@ export const erc20ToEthV2 = async (
 
     const trade = new Trade(route, amount, TradeType.EXACT_OUTPUT);
 
-    let amountOutMin: any = trade.minimumAmountOut(slippageTolerance).raw;
-    amountOutMin = BigNumber.from(amountOutMin.toString()).toHexString();
+    const amountOutMin: any = Buffer.from(
+      trade.minimumAmountOut(slippageTolerance).raw.toString()
+    ).toString("hex");
 
     const path = [currency.address, weth.address];
     const deadline = TWENTY_MINS_AHEAD();
@@ -326,6 +254,14 @@ export const sendErc20Token = async (
     const currency: Token = currencies[tempCurrency];
     const to = Web3.utils.toChecksumAddress(tempTo);
 
+    const {
+      wallet: account,
+      ethereumAddress: from,
+      privateKey,
+    } = await getWallet({
+      userId,
+    });
+
     if (!currency) {
       return {
         payload: { status: false, message: "Currency not found" },
@@ -333,79 +269,65 @@ export const sendErc20Token = async (
       };
     }
 
-    const amount = (tempAmount * Math.pow(10, currency.decimals)).toString();
-
-    const provider = new JsonRpcProvider(ethProviderUrl);
-    const web3 = new Web3(ethProviderUrl);
-    const user: UserSchema = await User.findByPk(userId);
-    const from = Web3.utils.toChecksumAddress(user.ethereumAddress);
-    let { privateKey } = user.resolveAccount({});
-
-    if (privateKey.length == 66) privateKey = privateKey.substring(2);
-    const privateKeyBuffer = Buffer.from(privateKey, "hex");
-
-    const signer = new Wallet(privateKey);
-    const account = signer.connect(provider);
-
-    let gasPrice = await web3.eth.getGasPrice();
-    gasPrice = Web3.utils.toHex(gasPrice);
+    const amount = tempAmount * Math.pow(10, currency.decimals);
 
     const contract = getTokenContract(currency.address, account);
 
-    let balance = await contract.balanceOf(from);
-    balance = web3.utils.hexToNumberString(balance);
+    let data = contract.interface.encodeFunctionData("transfer", [to, amount]);
 
-    if (balance < amount) {
+    let gasPrice: BigNumber | number = await provider.getGasPrice();
+    gasPrice = gasPrice.toNumber();
+    gasPrice = Math.ceil(gasPrice);
+
+    let balance = await contract.balanceOf(from);
+
+    if (BigNumber.from(balance).lt(BigNumber.from(amount))) {
       return {
         status: false,
         message: `You dont have enough ${tempCurrency}`,
       };
     }
 
-    const nonce = await web3.eth.getTransactionCount(from);
-
-    let rawTransaction: any = {
+    let tx: any = {
       from,
-      gasPrice,
-      to: currency.address,
-      value: "0x0",
-      data: contract.interface.encodeFunctionData("transfer", [to, amount]),
-      nonce,
+      to: contract.address,
+      data,
+      gasPrice: ethers.utils.hexlify(gasPrice),
     };
+    let gasLimit: BigNumber | number;
+    gasLimit = await provider.estimateGas(tx);
+    gasLimit = Math.ceil(gasLimit.toNumber());
 
-    const gasLimit = await web3.eth.estimateGas(rawTransaction);
+    tx.gasLimit = ethers.utils.hexlify(gasLimit);
 
-    let rate = gasLimit * parseInt(gasPrice);
-
-    console.log(gasLimit, gasPrice);
+    let rate = gasLimit * gasPrice;
 
     let charge: any = await getECR20Charge({ rate, currency: tempCurrency });
-    const tempCharge = BigNumber.from(
-      Math.ceil(charge * Math.pow(10, currency.decimals))
-    ).toString();
+
+    const tempCharge = Math.ceil(charge * Math.pow(10, currency.decimals));
 
     if (chargeFromAmount) {
       if (amount < tempCharge) {
         return {
           status: false,
-          message: `Charge is greatet the amount`,
+          message: `Charge is greater the amount`,
         };
       }
 
-      let newAmount = BigNumber.from(amount)
-        .sub(BigNumber.from(tempCharge))
-        .toString();
+      let newAmount = BigNumber.from(amount).sub(BigNumber.from(tempCharge));
 
-      rawTransaction.data = contract.interface.encodeFunctionData("transfer", [
+      data = contract.interface.encodeFunctionData("transfer", [
         to,
-        newAmount,
+        newAmount.toString(),
       ]);
 
-      rate = gasLimit * parseInt(gasPrice);
-    } else {
-      let newAmount = BigNumber.from(amount).add(tempCharge).toString();
+      tx.data = data;
 
-      if (balance < newAmount) {
+      rate = gasLimit * gasPrice;
+    } else {
+      let newAmount = amount + tempCharge;
+
+      if (BigNumber.from(balance).lt(BigNumber.from(newAmount))) {
         return {
           status: false,
           message: `You dont have enough ${tempCurrency}`,
@@ -413,23 +335,29 @@ export const sendErc20Token = async (
       }
     }
 
+    const nonceb4Swap = await provider.getTransactionCount(from);
+
     const { status, message }: any = await erc20ToEthV2({
       userId,
       currency: tempCurrency,
       amount: charge,
     });
 
+    const nonceAfterSwap = await provider.getTransactionCount(from);
+
     if (!status) return { status, message };
 
-    // let transaction = new Tx(rawTransaction);
+    tx.nonce =
+      nonceAfterSwap > nonceb4Swap ? nonceAfterSwap : nonceAfterSwap + 1;
+    let transaction = new Tx(tx, { chain: ethChainId });
 
-    // transaction.sign(privateKeyBuffer);
+    const privateKeyBuffer = Buffer.from(privateKey, "hex");
 
-    // web3.eth.sendSignedTransaction(
-    //   "0x" + transaction.serialize().toString("hex")
-    // );
+    transaction.sign(privateKeyBuffer);
 
-    await contract.transfer(to, amount);
+    await provider.sendTransaction(
+      "0x" + transaction.serialize().toString("hex")
+    );
 
     return {
       status: true,
@@ -443,6 +371,75 @@ export const sendErc20Token = async (
       ),
     };
   }
+};
+
+/**
+ * Send ETH
+ * @param {wallet.SendErc20Token} params  Request Body
+ * @returns {others.Response} Contains status, message and data if any of the operation
+ */
+export const sendEth = async (
+  params: wallet.SendErc20Token
+): Promise<others.Response> => {
+  try {
+    const { amount: tempAmount, to: tempTo, userId } = params;
+
+    const to = Web3.utils.toChecksumAddress(tempTo);
+    const value = parseEther(tempAmount.toString());
+
+    const tx = { to, value };
+
+    const { wallet, ethereumAddress } = await getWallet({
+      userId,
+    });
+
+    const balance = await provider.getBalance(ethereumAddress);
+
+    if (BigNumber.from(balance).lt(BigNumber.from(value))) {
+      return {
+        status: false,
+        message: `You dont have enough ETH`,
+      };
+    }
+
+    await wallet.sendTransaction(tx);
+
+    return {
+      status: true,
+      message: `Successfully transferred ${tempAmount} ETH to ${to}`,
+    };
+  } catch (error) {
+    return {
+      status: false,
+      message: "Error trying to send eth".concat(devEnv ? ": " + error : ""),
+    };
+  }
+};
+
+// ---------------------------
+// Helpers
+// ---------------------------
+
+const generateEthereumAddress = () => {
+  const provider = new Web3.providers.HttpProvider(ethProviderUrl);
+  const web3 = new Web3(provider);
+  const ethereumAccount = web3.eth.accounts.create();
+
+  delete ethereumAccount.encrypt;
+  delete ethereumAccount.sign;
+  delete ethereumAccount.signTransaction;
+  return ethereumAccount;
+};
+
+const generateBitcoinAddress = () => {
+  bitcore.Networks["defaultNetwork"] = bitcore.Networks[btcNetwork];
+
+  let privateKey: bitcore.PrivateKey | string = new bitcore.PrivateKey();
+  const wif = privateKey.toWIF();
+  const address = privateKey.toAddress().toString();
+  privateKey = privateKey.toString();
+
+  return { wif, address, privateKey };
 };
 
 const getECR20Charge = async ({ currency, rate }) => {
@@ -461,52 +458,18 @@ const getECR20Charge = async ({ currency, rate }) => {
   }: any = await res.json();
 
   const unitPrice = quote / base;
-  rate = rate / Math.pow(10, 18);
-  return unitPrice / rate;
+
+  return unitPrice / (rate / Math.pow(10, 18));
 };
 
-/**
- * Send ETH
- * @param {wallet.SendErc20Token} params  Request Body
- * @returns {others.Response} Contains status, message and data if any of the operation
- */
-export const sendEth = async (
-  params: wallet.SendErc20Token
-): Promise<others.Response> => {
-  try {
-    const { amount: tempAmount, to: tempTo, userId } = params;
+const getWallet = async ({ userId }) => {
+  const user: UserSchema = await User.findByPk(userId);
+  const ethereumAddress = Web3.utils.toChecksumAddress(user.ethereumAddress);
+  let { privateKey } = user.resolveAccount({});
 
-    const to = Web3.utils.toChecksumAddress(tempTo);
-    const amount = parseEther(tempAmount.toString());
+  if (privateKey.length == 66) privateKey = privateKey.substring(2);
 
-    let tx = { to, value: amount };
+  const wallet = new Wallet(privateKey).connect(provider);
 
-    const provider = new JsonRpcProvider(ethProviderUrl);
-    const web3 = new Web3(ethProviderUrl);
-    const user: UserSchema = await User.findByPk(userId);
-    const from = Web3.utils.toChecksumAddress(user.ethereumAddress);
-    const { privateKey } = user.resolveAccount({});
-
-    const wallet = new Wallet(privateKey, provider);
-    const balance = await web3.eth.getBalance(from);
-
-    if (balance.toString() < amount.toString()) {
-      return {
-        status: false,
-        message: `You dont have enough ETH`,
-      };
-    }
-
-    wallet.sendTransaction(tx);
-
-    return {
-      status: true,
-      message: `Successfully transferred ${tempAmount} ETH to ${to}`,
-    };
-  } catch (error) {
-    return {
-      status: false,
-      message: "Error trying to send eth".concat(devEnv ? ": " + error : ""),
-    };
-  }
+  return { ethereumAddress, privateKey, wallet };
 };
