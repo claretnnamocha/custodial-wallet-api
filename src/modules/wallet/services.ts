@@ -307,17 +307,12 @@ export const gaslessErc20ToEth = async (
 
     let rate = gasLimit * gasPrice;
 
-    let charge: any = await etherToECR20({ rate, currency: tempCurrency });
-    charge = Math.ceil(charge * Math.pow(10, currency.decimals));
-
-    amount = amount + charge;
-
-    if (BigNumber.from(balance).lt(BigNumber.from(amount))) {
-      return {
-        status: false,
-        message: `You dont have enough ${tempCurrency}`,
-      };
-    }
+    let charge = await etherToECR20({ rate, currency: tempCurrency });
+    let ethCharge = await etherToECR20({
+      rate: charge,
+      inverse: true,
+      currency: tempCurrency,
+    });
 
     tx.gasPrice = ethers.utils.hexlify(gasPrice);
     let transaction = new Tx(tx, { chain: ethChainId });
@@ -326,17 +321,23 @@ export const gaslessErc20ToEth = async (
 
     transaction.sign(privateKeyBuffer);
 
+    if (ethAmount < ethCharge) {
+      return {
+        status: false,
+        message: `Charge cannot be greater tha amount`,
+      };
+    }
+
     // Send ETH
     const to = Web3.utils.toChecksumAddress(recipient);
-    const value = BigNumber.from(Math.floor(rate + ethAmount).toString());
+    const value = Math.floor(ethAmount - ethCharge);
+    const tempValue = BigNumber.from(value.toString());
 
-    console.log(rate, ethAmount);
-
-    const ethTx = { to, value };
+    const ethTx = { to, value: value.toString() };
 
     const ethBalance = await provider.getBalance(sender);
 
-    if (ethBalance.lt(value)) {
+    if (ethBalance.lt(tempValue)) {
       return {
         status: false,
         message: `Liquidity provider does not have enough ETH`,
@@ -357,8 +358,6 @@ export const gaslessErc20ToEth = async (
       message: `Successfully swapped ${tempAmount} ${tempCurrency} for ETH without gas`,
     };
   } catch (error) {
-    console.log(error);
-
     return {
       status: false,
       message: "Error trying to swap erc20 token to eth".concat(
