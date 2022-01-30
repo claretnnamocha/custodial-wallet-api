@@ -257,6 +257,12 @@ export const gaslessErc20ToEth = async (
 
     let amount = Math.floor(tempAmount * Math.pow(10, currency.decimals));
 
+    let ethAmount = await etherToECR20({
+      rate: tempAmount,
+      currency: tempCurrency,
+      inverse: true,
+    });
+
     const {
       wallet: account,
       ethereumAddress: recipient,
@@ -293,7 +299,6 @@ export const gaslessErc20ToEth = async (
       to: contract.address,
       data,
       nonce,
-      gasPrice: ethers.utils.hexlify(gasPrice),
     };
 
     let gasLimit: BigNumber | number = await provider.estimateGas(tx);
@@ -302,7 +307,7 @@ export const gaslessErc20ToEth = async (
 
     let rate = gasLimit * gasPrice;
 
-    let charge: any = await getECR20Charge({ rate, currency: tempCurrency });
+    let charge: any = await etherToECR20({ rate, currency: tempCurrency });
     charge = Math.ceil(charge * Math.pow(10, currency.decimals));
 
     amount = amount + charge;
@@ -314,6 +319,7 @@ export const gaslessErc20ToEth = async (
       };
     }
 
+    tx.gasPrice = ethers.utils.hexlify(gasPrice);
     let transaction = new Tx(tx, { chain: ethChainId });
 
     let privateKeyBuffer = Buffer.from(privateKey, "hex");
@@ -322,7 +328,9 @@ export const gaslessErc20ToEth = async (
 
     // Send ETH
     const to = Web3.utils.toChecksumAddress(recipient);
-    const value = BigNumber.from(rate);
+    const value = BigNumber.from(Math.floor(rate + ethAmount).toString());
+
+    console.log(rate, ethAmount);
 
     const ethTx = { to, value };
 
@@ -335,19 +343,22 @@ export const gaslessErc20ToEth = async (
       };
     }
 
-    await liquidityAccount.sendTransaction(ethTx);
+    const trxn1 = await liquidityAccount.sendTransaction(ethTx);
+    await trxn1.wait();
 
     // Send ERC20
-
-    await provider.sendTransaction(
+    const trxn2 = await provider.sendTransaction(
       "0x" + transaction.serialize().toString("hex")
     );
+    await trxn2.wait();
 
     return {
       status: true,
       message: `Successfully swapped ${tempAmount} ${tempCurrency} for ETH without gas`,
     };
   } catch (error) {
+    console.log(error);
+
     return {
       status: false,
       message: "Error trying to swap erc20 token to eth".concat(
@@ -425,7 +436,7 @@ export const sendErc20Token = async (
 
     let rate = gasLimit * gasPrice;
 
-    let charge: any = await getECR20Charge({ rate, currency: tempCurrency });
+    let charge: any = await etherToECR20({ rate, currency: tempCurrency });
 
     const tempCharge = Math.ceil(charge * Math.pow(10, currency.decimals));
     let newAmount: BigNumber | number;
@@ -566,7 +577,7 @@ const generateBitcoinAddress = () => {
   return { wif, address, privateKey };
 };
 
-const getECR20Charge = async ({ currency, rate }) => {
+const etherToECR20 = async ({ currency, rate, inverse = false }) => {
   let res = await fetch(
     `https://api.coingecko.com/api/v3/simple/price?ids=${coinGeckMap[currency]}&vs_currencies=usd`
   );
@@ -583,7 +594,9 @@ const getECR20Charge = async ({ currency, rate }) => {
 
   const unitPrice = quote / base;
 
-  return unitPrice / (rate / Math.pow(10, 18));
+  return inverse
+    ? unitPrice * rate * Math.pow(10, 18)
+    : unitPrice / (rate / Math.pow(10, 18));
 };
 
 const getWallet = async ({ userId }) => {
