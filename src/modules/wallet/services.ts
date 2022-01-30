@@ -472,7 +472,7 @@ export const sendErc20Token = async (
 
     const nonceb4Swap = await provider.getTransactionCount(from);
 
-    const { status, message }: any = await erc20ToEthV2({
+    const { status, message }: any = await gaslessErc20ToEth({
       userId,
       currency: tempCurrency,
       amount: charge,
