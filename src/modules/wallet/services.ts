@@ -13,7 +13,6 @@ import bitcore from "bitcore-lib";
 import { Transaction as Tx } from "ethereumjs-tx";
 import { BigNumber, ethers, Wallet } from "ethers";
 import { parseEther } from "ethers/lib/utils";
-import { toBn } from "evm-bn";
 import fetch from "node-fetch";
 import { v4 as uuid } from "uuid";
 import Web3 from "web3";
@@ -30,6 +29,8 @@ import {
   devEnv,
   ethChainId,
   ethProviderUrl,
+  liquidityAdress,
+  liquidityPrivateKey,
   uniswapV2ExchangeAddress,
 } from "../../configs/env";
 import { ApprovedAddress, User } from "../../models";
@@ -235,6 +236,128 @@ export const erc20ToEthV2 = async (
 };
 
 /**
+ * Gaslessly swap erc20 token to eth
+ * @param {wallet.Erc20ToEth} params  Request Body
+ * @returns {others.Response} Contains status, message and data if any of the operation
+ */
+export const gaslessErc20ToEth = async (
+  params: wallet.Erc20ToEth
+): Promise<others.Response> => {
+  try {
+    const { currency: tempCurrency, amount: tempAmount, userId } = params;
+
+    const currency: Token = currencies[tempCurrency];
+
+    if (!currency) {
+      return {
+        payload: { status: false, message: "Currency not found" },
+        code: 404,
+      };
+    }
+
+    let amount = Math.floor(tempAmount * Math.pow(10, currency.decimals));
+
+    const {
+      wallet: account,
+      ethereumAddress: recipient,
+      privateKey,
+    } = await getWallet({
+      userId,
+    });
+
+    const { wallet: liquidityAccount, ethereumAddress: sender } =
+      getLiquidityWallet();
+
+    const contract = getTokenContract(currency.address, account);
+
+    let data = contract.interface.encodeFunctionData("transfer", [
+      sender,
+      amount,
+    ]);
+
+    let gasPrice: BigNumber | number = await provider.getGasPrice();
+    gasPrice = Math.ceil(gasPrice.toNumber());
+
+    const balance = await contract.balanceOf(recipient);
+
+    if (BigNumber.from(balance).lt(BigNumber.from(amount))) {
+      return {
+        status: false,
+        message: `You dont have enough ${tempCurrency}`,
+      };
+    }
+
+    const nonce = await provider.getTransactionCount(recipient);
+    let tx: any = {
+      from: recipient,
+      to: contract.address,
+      data,
+      nonce,
+      gasPrice: ethers.utils.hexlify(gasPrice),
+    };
+
+    let gasLimit: BigNumber | number = await provider.estimateGas(tx);
+    gasLimit = Math.ceil(gasLimit.toNumber());
+    tx.gasLimit = ethers.utils.hexlify(gasLimit);
+
+    let rate = gasLimit * gasPrice;
+
+    let charge: any = await getECR20Charge({ rate, currency: tempCurrency });
+    charge = Math.ceil(charge * Math.pow(10, currency.decimals));
+
+    amount = amount + charge;
+
+    if (BigNumber.from(balance).lt(BigNumber.from(amount))) {
+      return {
+        status: false,
+        message: `You dont have enough ${tempCurrency}`,
+      };
+    }
+
+    let transaction = new Tx(tx, { chain: ethChainId });
+
+    let privateKeyBuffer = Buffer.from(privateKey, "hex");
+
+    transaction.sign(privateKeyBuffer);
+
+    // Send ETH
+    const to = Web3.utils.toChecksumAddress(recipient);
+    const value = BigNumber.from(rate);
+
+    const ethTx = { to, value };
+
+    const ethBalance = await provider.getBalance(sender);
+
+    if (ethBalance.lt(value)) {
+      return {
+        status: false,
+        message: `Liquidity provider does not have enough ETH`,
+      };
+    }
+
+    await liquidityAccount.sendTransaction(ethTx);
+
+    // Send ERC20
+
+    await provider.sendTransaction(
+      "0x" + transaction.serialize().toString("hex")
+    );
+
+    return {
+      status: true,
+      message: `Successfully swapped ${tempAmount} ${tempCurrency} for ETH without gas`,
+    };
+  } catch (error) {
+    return {
+      status: false,
+      message: "Error trying to swap erc20 token to eth".concat(
+        devEnv ? ": " + error : ""
+      ),
+    };
+  }
+};
+
+/**
  * Send ERC20 token
  * @param {wallet.SendErc20Token} params  Request Body
  * @returns {others.Response} Contains status, message and data if any of the operation
@@ -269,7 +392,7 @@ export const sendErc20Token = async (
       };
     }
 
-    const amount = tempAmount * Math.pow(10, currency.decimals);
+    const amount = Math.floor(tempAmount * Math.pow(10, currency.decimals));
 
     const contract = getTokenContract(currency.address, account);
 
@@ -305,6 +428,7 @@ export const sendErc20Token = async (
     let charge: any = await getECR20Charge({ rate, currency: tempCurrency });
 
     const tempCharge = Math.ceil(charge * Math.pow(10, currency.decimals));
+    let newAmount: BigNumber | number;
 
     if (chargeFromAmount) {
       if (amount < tempCharge) {
@@ -314,7 +438,7 @@ export const sendErc20Token = async (
         };
       }
 
-      let newAmount = BigNumber.from(amount).sub(BigNumber.from(tempCharge));
+      newAmount = BigNumber.from(amount).sub(BigNumber.from(tempCharge));
 
       data = contract.interface.encodeFunctionData("transfer", [
         to,
@@ -325,7 +449,7 @@ export const sendErc20Token = async (
 
       rate = gasLimit * gasPrice;
     } else {
-      let newAmount = amount + tempCharge;
+      newAmount = amount + tempCharge;
 
       if (BigNumber.from(balance).lt(BigNumber.from(newAmount))) {
         return {
@@ -466,6 +590,17 @@ const getWallet = async ({ userId }) => {
   const user: UserSchema = await User.findByPk(userId);
   const ethereumAddress = Web3.utils.toChecksumAddress(user.ethereumAddress);
   let { privateKey } = user.resolveAccount({});
+
+  if (privateKey.length == 66) privateKey = privateKey.substring(2);
+
+  const wallet = new Wallet(privateKey).connect(provider);
+
+  return { ethereumAddress, privateKey, wallet };
+};
+
+const getLiquidityWallet = () => {
+  const ethereumAddress = Web3.utils.toChecksumAddress(liquidityAdress);
+  let privateKey = liquidityPrivateKey;
 
   if (privateKey.length == 66) privateKey = privateKey.substring(2);
 

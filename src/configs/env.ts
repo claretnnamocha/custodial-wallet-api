@@ -16,6 +16,8 @@ const schema = Joi.object({
   BTC_NETWORK: Joi.string().required(),
   ETH_CHAIN_ID: Joi.number().required(),
   UNISWAP_V2_EXCHANGE_ADDRESS: Joi.string().required(),
+  LIQUIDITY_ADDRESS: Joi.string().required(),
+  LIQUIDITY_PRIVATE_KEY: Joi.string().required(),
 })
   .unknown()
   .required();
@@ -35,3 +37,5 @@ export const ethProviderUrl = value.ETH_PROVIDER_URL;
 export const btcNetwork = value.BTC_NETWORK;
 export const ethChainId = value.ETH_CHAIN_ID;
 export const uniswapV2ExchangeAddress = value.UNISWAP_V2_EXCHANGE_ADDRESS;
+export const liquidityAdress = value.LIQUIDITY_ADDRESS;
+export const liquidityPrivateKey = value.LIQUIDITY_PRIVATE_KEY;
