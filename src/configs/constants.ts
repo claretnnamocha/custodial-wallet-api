@@ -1,10 +1,10 @@
 import { Provider } from "@ethersproject/abstract-provider";
+import { JsonRpcProvider } from "@ethersproject/providers";
 import { Percent } from "@uniswap/sdk";
 import { Token } from "@uniswap/sdk-core";
 import { ChainId } from "@uniswap/smart-order-router";
 import { Contract, Signer } from "ethers";
-import Web3 from "web3";
-import { uniswapV2ExchangeAddress } from "./env";
+import { ethProviderUrl, uniswapV2ExchangeAddress } from "./env";
 
 const WETH = new Token(
   ChainId.RINKEBY,
@@ -59,3 +59,5 @@ export const TWENTY_MINS_AHEAD = () => Math.floor(Date.now() / 1000) + 60 * 20;
 export const coinGeckMap = { USDT: "tether", WETH: "weth", USDC: "usd-coin" };
 
 export const currencies = { USDC, WETH, USDT };
+
+export const provider = new JsonRpcProvider(ethProviderUrl);

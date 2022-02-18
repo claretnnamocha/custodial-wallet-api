@@ -1,4 +1,3 @@
-import { JsonRpcProvider } from "@ethersproject/providers";
 import {
   Fetcher,
   Route,
@@ -21,6 +20,7 @@ import {
   currencies,
   getTokenContract,
   getUniswapContract,
+  provider,
   slippageTolerance,
   TWENTY_MINS_AHEAD,
 } from "../../configs/constants";
@@ -36,8 +36,6 @@ import {
 import { ApprovedAddress, User } from "../../models";
 import { UserSchema } from "../../types/models";
 import { others, wallet } from "../../types/services";
-
-const provider = new JsonRpcProvider(ethProviderUrl);
 
 /**
  * Create user wallet
@@ -267,9 +265,7 @@ export const gaslessErc20ToEth = async (
       wallet: account,
       ethereumAddress: recipient,
       privateKey,
-    } = await getWallet({
-      userId,
-    });
+    } = await getWallet({ userId });
 
     const { wallet: liquidityAccount, ethereumAddress: sender } =
       getLiquidityWallet();
@@ -294,34 +290,27 @@ export const gaslessErc20ToEth = async (
     }
 
     const nonce = await provider.getTransactionCount(recipient);
-    let tx: any = {
+    let erc20Tx: any = {
       from: recipient,
       to: contract.address,
       data,
       nonce,
     };
 
-    let gasLimit: BigNumber | number = await provider.estimateGas(tx);
+    let gasLimit: BigNumber | number = await provider.estimateGas(erc20Tx);
     gasLimit = Math.ceil(gasLimit.toNumber());
-    tx.gasLimit = ethers.utils.hexlify(gasLimit);
+    erc20Tx.gasLimit = gasLimit.toString();
 
     let rate = gasLimit * gasPrice;
 
-    let charge = await etherToECR20({ rate, currency: tempCurrency });
-    let ethCharge = await etherToECR20({
-      rate: charge,
-      inverse: true,
-      currency: tempCurrency,
-    });
+    erc20Tx.gasPrice = gasPrice.toString();
+    let tx: Tx | string = new Tx(erc20Tx, { chain: ethChainId });
 
-    tx.gasPrice = ethers.utils.hexlify(gasPrice);
-    let transaction = new Tx(tx, { chain: ethChainId });
+    // let privateKeyBuffer = Buffer.from(privateKey, "hex");
 
-    let privateKeyBuffer = Buffer.from(privateKey, "hex");
+    // tx.sign(privateKeyBuffer);
 
-    transaction.sign(privateKeyBuffer);
-
-    if (ethAmount < ethCharge) {
+    if (ethAmount < rate) {
       return {
         status: false,
         message: `Charge cannot be greater tha amount`,
@@ -329,28 +318,27 @@ export const gaslessErc20ToEth = async (
     }
 
     // Send ETH
-    const to = Web3.utils.toChecksumAddress(recipient);
-    const value = Math.floor(ethAmount - ethCharge);
-    const tempValue = BigNumber.from(value.toString());
+    const to: string = Web3.utils.toChecksumAddress(recipient);
+    let value: string | BigNumber = BigNumber.from(
+      Math.floor(ethAmount).toString()
+    );
+    const ethBalance: BigNumber = await provider.getBalance(sender);
 
-    const ethTx = { to, value: value.toString() };
-
-    const ethBalance = await provider.getBalance(sender);
-
-    if (ethBalance.lt(tempValue)) {
+    if (ethBalance.lt(value)) {
       return {
         status: false,
         message: `Liquidity provider does not have enough ETH`,
       };
     }
 
+    value = value.toString();
+    const ethTx = { to, value };
     const trxn1 = await liquidityAccount.sendTransaction(ethTx);
     await trxn1.wait();
 
     // Send ERC20
-    const trxn2 = await provider.sendTransaction(
-      "0x" + transaction.serialize().toString("hex")
-    );
+    tx = tx.serialize().toString("hex");
+    const trxn2 = await provider.sendTransaction(erc20Tx);
     await trxn2.wait();
 
     return {
